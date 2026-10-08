@@ -137,20 +137,21 @@ dialog::backdrop{background:rgba(10,18,32,.6)}
 <dialog id="dlg"><div class="dlg">
 <h2 id="dlgT"></h2>
 <input class="f" id="dlgName" aria-label="Nazwa unitu">
+<button class="btn" id="dlgSwap">⇄ Zamień strony</button>
 <div class="plist" id="dlgList"></div>
 <div class="row"><button class="btn" id="dlgNo">Anuluj</button><button class="btn primary" id="dlgOk"></button></div>
 </div></dialog>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
-const KEY='fiszki_v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const KEY='fiszki_v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/',OCRJS='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const $=id=>document.getElementById(id),card=$('card');
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
 let db={units:[]};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.units))db=s}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast('Nie udało się zapisać')}}
-let toastT;function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('on'),2200)}
+let toastT;function toast(t,ms=2200){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('on'),ms)}
 const knownCount=u=>u.words.filter(w=>w.k).length;
 const same=(a,b)=>a.trim().toLowerCase()===b.trim().toLowerCase();
 
@@ -294,12 +295,13 @@ function prow(en,pl){
 }
 function rows(){return [...$('dlgList').children].map(r=>{const [a,b]=r.querySelectorAll('input');return [a.value.trim(),b.value.trim()]}).filter(p=>p[0]&&p[1])}
 function upd(){const n=rows().length;$('dlgOk').textContent='Dodaj ('+n+')';$('dlgOk').disabled=!n}
-function openDlg({title,name,pairs,onOk}){
-  $('dlgT').textContent=title;$('dlgName').hidden=name==null;$('dlgName').value=name||'';
+function openDlg({title,name,pairs,onOk,swap}){
+  $('dlgT').textContent=title;$('dlgName').hidden=name==null;$('dlgName').value=name||'';$('dlgSwap').hidden=!swap;
   $('dlgList').replaceChildren(...pairs.map(p=>prow(p[0],p[1])));
   dlgOk=onOk;upd();$('dlg').showModal();
 }
 $('dlgNo').onclick=()=>$('dlg').close();
+$('dlgSwap').onclick=()=>{for(const r of $('dlgList').children){const [a,b]=r.querySelectorAll('input');[a.value,b.value]=[b.value,a.value]}};
 $('dlgOk').onclick=()=>{const r=rows();if(!r.length)return;$('dlg').close();dlgOk(r,$('dlgName').value.trim())};
 
 /* ---------- PDF ---------- */
@@ -314,31 +316,55 @@ function splitPair(s){
   const en=s.slice(0,m.index).trim(),pl=s.slice(m.index+m[0].length).trim();
   return en&&pl?[en,pl]:null;
 }
+function loadOcr(){
+  if(window.Tesseract)return Promise.resolve();
+  return new Promise((res,rej)=>{const s=document.createElement('script');s.src=OCRJS;s.onload=res;s.onerror=rej;document.head.append(s)});
+}
+// jedna linia tekstu (kawałki z pozycją x, szerokością w, wysokością h) -> pary słówek
+function linePairs(items,out){
+  items.sort((a,b)=>a.x-b.x);
+  // duża przerwa w linii = kolejna para obok
+  const segs=[];let seg='',end=null;
+  for(const it of items){
+    const gap=end==null?0:it.x-end;
+    if(end!=null&&gap>it.h*1.5){segs.push(seg);seg=''}else if(end!=null&&gap>it.h*.1)seg+=' ';
+    seg+=it.s;end=it.x+it.w;
+  }
+  segs.push(seg);
+  // myślnik odsunięty tabulatorem łączymy z sąsiadami
+  for(let i=0;i<segs.length-1;i++)if(/[–—=-]\s*$/.test(segs[i])||/^\s*[–—=-]/.test(segs[i+1])){segs.splice(i,2,segs[i]+' '+segs[i+1]);i--}
+  for(const s of segs){const pr=splitPair(s);if(pr)out.push(pr)}
+}
 async function pdfPairs(file){
   await loadPdf();
   const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,out=[];
-  for(let p=1;p<=doc.numPages;p++){
-    const tc=await (await doc.getPage(p)).getTextContent();
-    const items=tc.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5],w:it.width,h:Math.abs(it.transform[3])||it.height||10}));
-    items.sort((a,b)=>b.y-a.y||a.x-b.x);
-    const lines=[];
-    for(const it of items){const L=lines[lines.length-1];if(L&&Math.abs(L.y-it.y)<it.h*.5)L.items.push(it);else lines.push({y:it.y,items:[it]})}
-    for(const L of lines){
-      L.items.sort((a,b)=>a.x-b.x);
-      // duża przerwa w linii = kolejna para obok
-      const segs=[];let seg='',end=null;
-      for(const it of L.items){
-        const gap=end==null?0:it.x-end;
-        if(end!=null&&gap>it.h*1.5){segs.push(seg);seg=''}else if(end!=null&&gap>it.h*.1)seg+=' ';
-        seg+=it.s;end=it.x+it.w;
+  let ocr=null;
+  try{
+    for(let p=1;p<=doc.numPages;p++){
+      const page=await doc.getPage(p),tc=await page.getTextContent();
+      const items=tc.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5],w:it.width,h:Math.abs(it.transform[3])||it.height||10}));
+      if(items.length){
+        items.sort((a,b)=>b.y-a.y||a.x-b.x);
+        const lines=[];
+        for(const it of items){const L=lines[lines.length-1];if(L&&Math.abs(L.y-it.y)<it.h*.5)L.push(it);else lines.push([it])}
+        for(const L of lines)linePairs(L,out);
+        continue;
       }
-      segs.push(seg);
-      // myślnik odsunięty tabulatorem łączymy z sąsiadami
-      for(let i=0;i<segs.length-1;i++)if(/[–—=-]\s*$/.test(segs[i])||/^\s*[–—=-]/.test(segs[i+1])){segs.splice(i,2,segs[i]+' '+segs[i+1]);i--}
-      for(const s of segs){const pr=splitPair(s);if(pr)out.push(pr)}
+      // strona bez tekstu (skan, OneNote) -> rozpoznawanie tekstu ze zdjęcia strony
+      toast('Rozpoznaję tekst'+(doc.numPages>1?' – strona '+p+' z '+doc.numPages:'')+'…',60000);
+      if(!ocr){await loadOcr();ocr=await Tesseract.createWorker(['pol','eng'])}
+      const vp=page.getViewport({scale:Math.min(3,Math.max(1,4000/page.getViewport({scale:1}).width))});
+      const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;
+      const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      const r=await ocr.recognize(c);
+      for(const L of r.data.lines||[])linePairs(L.words.map(w=>({s:w.text,x:w.bbox.x0,w:w.bbox.x1-w.bbox.x0,h:L.bbox.y1-L.bbox.y0})),out);
     }
-  }
-  return out;
+  }finally{if(ocr)ocr.terminate()}
+  // jeśli po lewej jest polski (więcej polskich liter), zamień strony
+  const pl=s=>(s.match(/[ąćęłńóśźż]/gi)||[]).length;
+  let l=0,rr=0;for(const [a,b] of out){l+=pl(a);rr+=pl(b)}
+  return l>rr?out.map(([a,b])=>[b,a]):out;
 }
 $('pdfBtn').onclick=()=>$('pdfFile').click();
 $('pdfFile').onchange=async e=>{
@@ -346,7 +372,8 @@ $('pdfFile').onchange=async e=>{
   const u=cur;toast('Czytam PDF…');let pairs;
   try{pairs=await pdfPairs(f)}catch(err){toast(navigator.onLine?'Nie udało się odczytać PDF':'Do czytania PDF potrzebny jest internet');return}
   if(!pairs.length){toast('Nie znalazłem słówek w tym PDF');return}
-  openDlg({title:'Słówka z PDF',pairs,onOk:r=>{const n=addPairs(u,r);save();if(cur===u&&view==='unit')renderUnit();toast('Dodano: '+n)}});
+  toast('',1);
+  openDlg({title:'Słówka z PDF',pairs,swap:true,onOk:r=>{const n=addPairs(u,r);save();if(cur===u&&view==='unit')renderUnit();toast('Dodano: '+n)}});
 };
 
 /* ---------- udostępnianie przez link ---------- */
