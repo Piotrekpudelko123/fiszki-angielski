@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fiszki</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EDF1F5;--ink:#14233C;--muted:#5B6B82;--card:#FFFFFF;--board:#14233C;--sign:#FFC72C;--ok:#1F8A5B;--no:#C8452F;--line:#D3DBE4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1726;--ink:#E7ECF3;--muted:#95A3B8;--card:#18253A;--board:#0A1220;--line:#2A3A52}}
+:root[data-theme="dark"]{--bg:#0E1726;--ink:#E7ECF3;--muted:#95A3B8;--card:#18253A;--board:#0A1220;--line:#2A3A52}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;display:flex;flex-direction:column}
+header{background:var(--board);color:#fff;padding:14px 18px 12px}
+.top{display:flex;align-items:center;gap:10px;max-width:560px;margin:0 auto}
+.backb{background:none;border:none;color:#fff;font-size:1.7rem;line-height:1;cursor:pointer;padding:0 6px 2px 0;min-height:36px}
+h1{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:"Barlow Condensed",Barlow,Arial,sans-serif;font-weight:700;font-size:1.5rem;margin:0;color:var(--sign);letter-spacing:.02em}
+.count{font-family:"Barlow Condensed",Barlow,Arial,sans-serif;font-size:1.15rem;font-weight:600;font-variant-numeric:tabular-nums}
+.bar{max-width:560px;margin:10px auto 0;height:5px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--sign);width:0;transition:width .3s}
+.known{max-width:560px;margin:6px auto 0;font-size:.85rem;color:#B9C6D8}
+[hidden]{display:none!important}
+main{flex:1;display:flex;flex-direction:column;align-items:center;padding:18px 16px;width:100%;max-width:592px;margin:0 auto}
+.view{display:none;width:100%;flex-direction:column;gap:14px}
+.view.on{display:flex}
+#vStudy.on{flex:1}
+.btn{font:600 1rem Barlow,Arial,sans-serif;padding:12px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;min-height:48px}
+.btn.primary{background:var(--board);color:var(--sign);border-color:var(--board)}
+.btn.danger{color:var(--no)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.icon:focus-visible,.unit-item:focus-visible,.backb:focus-visible{outline:3px solid var(--sign);outline-offset:2px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.unit-item{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:16px 18px;cursor:pointer;font:inherit}
+.unit-item b{font-family:"Barlow Condensed",Barlow,Arial,sans-serif;font-size:1.35rem;font-weight:600;overflow-wrap:anywhere}
+.unit-item small{color:var(--muted);font-size:.9rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.empty{color:var(--muted);text-align:center;margin:24px 0}
+.add{display:flex;flex-wrap:wrap;gap:8px}
+input.f{flex:1 1 130px;min-width:0;font:500 1rem Barlow,Arial,sans-serif;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);min-height:48px}
+input.f:focus{outline:2px solid var(--sign);outline-offset:0;border-color:var(--sign)}
+.add .btn{flex:1 1 100%}
+.word-row{display:flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 14px}
+.word-row .t{flex:1;min-width:0;overflow-wrap:anywhere;padding:6px 0}
+.word-row .t span{color:var(--muted)}
+.word-row .t em{font-style:normal;color:var(--ok);font-weight:600;margin-left:6px}
+.icon{background:none;border:none;color:var(--muted);font-size:1.15rem;cursor:pointer;min-width:42px;min-height:42px;border-radius:8px}
+.icon:hover{background:var(--bg)}
+.sub{font-family:"Barlow Condensed",Barlow,Arial,sans-serif;font-size:1.1rem;font-weight:600;color:var(--muted);margin:6px 0 -4px}
+/* nauka – jak w oryginale */
+.opts{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.opts button{flex:1 1 auto;font:500 .9rem Barlow,Arial,sans-serif;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;min-height:40px}
+.opts button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.scene{width:100%;perspective:1200px;flex:1;min-height:260px;max-height:380px}
+.card{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .45s;cursor:pointer;outline:none}
+.card.flip{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--card);border-radius:14px;border:1px solid var(--line);
+display:flex;flex-direction:column;justify-content:center;align-items:center;padding:28px 22px;text-align:center}
+.face::before,.face::after{content:"";position:absolute;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.face::before{left:-12px;clip-path:inset(0 0 0 50%)}.face::after{right:-12px;clip-path:inset(0 50% 0 0)}
+.back{transform:rotateY(180deg);border-top:6px solid var(--sign)}
+.lang{position:absolute;top:14px;left:18px;font-size:.8rem;color:var(--muted);font-weight:600}
+.num{position:absolute;top:14px;right:18px;font-size:.9rem;color:var(--ok);font-weight:600}
+.word{font-family:"Barlow Condensed",Barlow,Arial,sans-serif;font-weight:600;font-size:clamp(1.7rem,7vw,2.5rem);line-height:1.15;overflow-wrap:anywhere}
+.hint{position:absolute;bottom:14px;font-size:.8rem;color:var(--muted)}
+.card:focus-visible .face{outline:3px solid var(--sign);outline-offset:3px}
+.act{display:flex;gap:10px;width:100%}
+.act button{flex:1;font:600 1.05rem Barlow,Arial,sans-serif;padding:14px;border-radius:10px;border:none;color:#fff;cursor:pointer;min-height:52px}
+.act .no{background:var(--no)}.act .ok{background:var(--ok)}
+.act button:focus-visible,.opts button:focus-visible,.end button:focus-visible{outline:3px solid var(--sign);outline-offset:2px}
+.nav{display:flex;justify-content:space-between;width:100%;font-size:.9rem}
+.nav button{background:none;border:none;color:var(--muted);font:500 .9rem Barlow,Arial,sans-serif;cursor:pointer;padding:6px 2px}
+.end{display:none;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:30px 10px}
+.end h2{font-family:"Barlow Condensed",Barlow,Arial,sans-serif;font-size:2rem;margin:0}
+.end p{margin:0;color:var(--muted)}
+.end button{font:600 1rem Barlow,Arial,sans-serif;padding:13px 18px;border-radius:10px;border:none;background:var(--board);color:var(--sign);cursor:pointer;min-width:220px}
+.end button.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+/* okno podglądu */
+dialog{border:none;border-radius:14px;padding:0;background:var(--bg);color:var(--ink);width:min(560px,calc(100% - 24px));max-height:calc(100% - 40px)}
+dialog::backdrop{background:rgba(10,18,32,.6)}
+.dlg{display:flex;flex-direction:column;gap:12px;padding:18px;max-height:calc(100vh - 40px)}
+.dlg h2{font-family:"Barlow Condensed",Barlow,Arial,sans-serif;font-size:1.5rem;margin:0}
+.plist{display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;min-height:60px}
+.prow{display:flex;gap:6px;align-items:center}
+.prow input.f{flex:1 1 0;min-height:42px;padding:8px 10px}
+.prow.warn input.f{border-color:var(--sign)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;font-weight:500;max-width:calc(100% - 32px);text-align:center;z-index:10}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.card{transition:none}.bar i{transition:none}}
+</style></head><body>
+<header><div class="top"><button class="backb" id="back" aria-label="Wstecz" hidden>‹</button><h1 id="title">Fiszki</h1><span class="count" id="count"></span></div>
+<div class="bar" id="barWrap" hidden><i id="prog"></i></div><div class="known" id="known" hidden></div></header>
+<main>
+
+<section class="view" id="vHome">
+<ul class="list" id="unitList"></ul>
+<button class="btn primary" id="addUnit">+ Nowy unit</button>
+<div class="row"><button class="btn" id="backup">Kopia zapasowa</button><button class="btn" id="restore">Wczytaj kopię</button></div>
+<input type="file" id="restoreFile" accept="application/json,.json" hidden>
+</section>
+
+<section class="view" id="vUnit">
+<button class="btn primary" id="learn">Ucz się</button>
+<form class="add" id="addForm" autocomplete="off">
+<input class="f" id="inEn" placeholder="angielski" aria-label="Słówko po angielsku">
+<input class="f" id="inPl" placeholder="polski" aria-label="Tłumaczenie po polsku">
+<button class="btn" id="addBtn">Dodaj</button>
+<button class="btn" type="button" id="cancelEdit" hidden>Anuluj edycję</button>
+</form>
+<div class="row"><button class="btn" id="pdfBtn">Dodaj z PDF</button><button class="btn" id="shareBtn">Udostępnij</button></div>
+<input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
+<div class="sub" id="wordsHead"></div>
+<ul class="list" id="wordList"></ul>
+<div class="row"><button class="btn" id="renameUnit">Zmień nazwę</button><button class="btn danger" id="delUnit">Usuń unit</button></div>
+</section>
+
+<section class="view" id="vStudy">
+<div class="opts">
+<button id="dir" aria-pressed="false">EN → PL</button>
+<button id="shuf" aria-pressed="false">Losowo</button>
+<button id="only" aria-pressed="false">Tylko nieznane</button>
+</div>
+<div id="study" style="display:contents">
+<div class="scene"><div class="card" id="card" tabindex="0" role="button" aria-label="Odwróć fiszkę">
+<div class="face front"><span class="lang" id="l1">English</span><span class="num" id="n1"></span><div class="word" id="w1"></div><span class="hint">Dotknij, żeby odwrócić</span></div>
+<div class="face back"><span class="lang" id="l2">Polski</span><span class="num" id="n2"></span><div class="word" id="w2"></div></div>
+</div></div>
+<div class="act"><button class="no" id="no">Jeszcze nie</button><button class="ok" id="ok">Umiem</button></div>
+<div class="nav"><button id="prev">‹ Poprzednia</button><button id="reset">Wyzeruj postęp</button><button id="next">Pomiń ›</button></div>
+</div>
+<div class="end" id="end"><h2 id="endT"></h2><p id="endP"></p>
+<button id="again">Powtórz te, których nie umiem</button><button class="sec" id="all">Wszystkie od nowa</button></div>
+</section>
+
+</main>
+
+<dialog id="dlg"><div class="dlg">
+<h2 id="dlgT"></h2>
+<input class="f" id="dlgName" aria-label="Nazwa unitu">
+<div class="plist" id="dlgList"></div>
+<div class="row"><button class="btn" id="dlgNo">Anuluj</button><button class="btn primary" id="dlgOk"></button></div>
+</div></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const KEY='fiszki_v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const $=id=>document.getElementById(id),card=$('card');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+let db={units:[]};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.units))db=s}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast('Nie udało się zapisać')}}
+let toastT;function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('on'),2200)}
+const knownCount=u=>u.words.filter(w=>w.k).length;
+const same=(a,b)=>a.trim().toLowerCase()===b.trim().toLowerCase();
+
+/* ---------- widoki ---------- */
+let view='home',cur=null,editId=null;
+function go(v,uId,push=true){
+  cur=db.units.find(u=>u.id===uId)||null;if(!cur)v='home';
+  if(push)history.pushState({v,u:uId},'');
+  view=v;
+  $('vHome').classList.toggle('on',v==='home');$('vUnit').classList.toggle('on',v==='unit');$('vStudy').classList.toggle('on',v==='study');
+  $('back').hidden=v==='home';$('barWrap').hidden=$('known').hidden=v!=='study';$('count').textContent='';
+  $('title').textContent=v==='home'?'Fiszki':cur.name;
+  if(v==='home')renderHome();
+  if(v==='unit'){resetForm();renderUnit()}
+  if(v==='study')build();
+  window.scrollTo(0,0);
+}
+addEventListener('popstate',e=>{const s=e.state||{v:'home'};go(s.v,s.u,false)});
+$('back').onclick=()=>history.back();
+
+/* ---------- lista unitów ---------- */
+function renderHome(){
+  const L=$('unitList');L.replaceChildren();
+  if(!db.units.length){L.append(el('p','empty','Nie masz jeszcze żadnego unitu'));return}
+  for(const u of db.units){
+    const li=el('li'),b=el('button','unit-item');
+    b.append(el('b',null,u.name),el('small',null,u.words.length?knownCount(u)+' / '+u.words.length:'pusty'));
+    b.onclick=()=>go('unit',u.id);li.append(b);L.append(li);
+  }
+}
+$('addUnit').onclick=()=>{
+  const name=prompt('Nazwa unitu:','Unit '+(db.units.length+1));
+  if(!name||!name.trim())return;
+  const u={id:uid(),name:name.trim(),words:[]};db.units.push(u);save();go('unit',u.id);
+};
+
+/* ---------- kopia zapasowa ---------- */
+$('backup').onclick=()=>{
+  if(!db.units.length){toast('Nie ma czego zapisać');return}
+  const a=el('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({fiszki:1,units:db.units})],{type:'application/json'}));
+  a.download='fiszki-kopia-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$('restore').onclick=()=>$('restoreFile').click();
+$('restoreFile').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  let units;
+  try{const d=JSON.parse(await f.text());units=d.units;if(!Array.isArray(units))throw 0}catch(err){toast('To nie jest plik kopii');return}
+  // scalanie: nic, co już jest, nie znika
+  let nu=0,nw=0;
+  for(const b of units){
+    if(!b||typeof b.name!=='string'||!Array.isArray(b.words))continue;
+    let u=db.units.find(x=>x.id===b.id);
+    if(!u){u={id:typeof b.id==='string'?b.id:uid(),name:b.name.slice(0,80),words:[]};if(typeof b.sid==='string')u.sid=b.sid;db.units.push(u);nu++}
+    for(const w of b.words){
+      if(!w||typeof w.en!=='string'||typeof w.pl!=='string')continue;
+      const ex=u.words.find(x=>same(x.en,w.en)&&same(x.pl,w.pl));
+      if(ex){if(w.k)ex.k=true}else{u.words.push({id:uid(),en:w.en.slice(0,200),pl:w.pl.slice(0,200),k:!!w.k});nw++}
+    }
+  }
+  save();renderHome();toast('Wczytano: '+nu+' unitów, '+nw+' słówek');
+};
+
+/* ---------- unit: słówka ---------- */
+function renderUnit(){
+  const n=cur.words.length;
+  $('learn').disabled=!n;$('shareBtn').disabled=!n;
+  $('count').textContent=n?knownCount(cur)+' / '+n:'';
+  $('wordsHead').textContent=n?'Słówka ('+n+')':'';
+  const L=$('wordList');L.replaceChildren();
+  for(const w of [...cur.words].reverse()){
+    const li=el('li','word-row'),t=el('div','t');
+    t.append(w.en+' — ',el('span',null,w.pl));if(w.k)t.append(el('em',null,'✓'));
+    const ed=el('button','icon','✎'),del=el('button','icon','×');
+    ed.setAttribute('aria-label','Edytuj');del.setAttribute('aria-label','Usuń');
+    ed.onclick=()=>{editId=w.id;$('inEn').value=w.en;$('inPl').value=w.pl;$('addBtn').textContent='Zapisz';$('cancelEdit').hidden=false;$('addForm').scrollIntoView({block:'center'});$('inEn').focus()};
+    del.onclick=()=>{if(!confirm('Usunąć „'+w.en+'”?'))return;cur.words=cur.words.filter(x=>x!==w);if(editId===w.id)resetForm();save();renderUnit()};
+    li.append(t,ed,del);L.append(li);
+  }
+}
+function resetForm(){editId=null;$('inEn').value=$('inPl').value='';$('addBtn').textContent='Dodaj';$('cancelEdit').hidden=true}
+$('cancelEdit').onclick=resetForm;
+$('addForm').onsubmit=e=>{
+  e.preventDefault();
+  const en=$('inEn').value.trim(),pl=$('inPl').value.trim();
+  if(!en){$('inEn').focus();return}if(!pl){$('inPl').focus();return}
+  const w=editId&&cur.words.find(x=>x.id===editId);
+  if(w){if(w.en!==en||w.pl!==pl){w.en=en;w.pl=pl;w.k=false}}
+  else{
+    if(cur.words.some(x=>same(x.en,en)&&same(x.pl,pl))){toast('To słówko już jest');return}
+    cur.words.push({id:uid(),en,pl,k:false});
+  }
+  save();resetForm();renderUnit();$('inEn').focus();
+};
+$('learn').onclick=()=>go('study',cur.id);
+$('renameUnit').onclick=()=>{const n=prompt('Nowa nazwa:',cur.name);if(!n||!n.trim())return;cur.name=n.trim();save();$('title').textContent=cur.name};
+$('delUnit').onclick=()=>{if(!confirm('Usunąć cały „'+cur.name+'” razem ze słówkami?'))return;db.units=db.units.filter(u=>u!==cur);save();history.back()};
+function addPairs(u,rows){let n=0;for(const [en,pl] of rows){if(u.words.some(x=>same(x.en,en)&&same(x.pl,pl)))continue;u.words.push({id:uid(),en,pl,k:false});n++}return n}
+
+/* ---------- nauka (jak w oryginale) ---------- */
+const opt={pl2en:false,shuffle:false,only:false};let deck=[],pos=0;
+function build(){const W=cur.words;deck=W.map((_,i)=>i);if(opt.only)deck=deck.filter(i=>!W[i].k);
+if(opt.shuffle)for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}
+pos=0;show()}
+function show(){const W=cur.words,wf=card.classList.contains('flip');card.classList.remove('flip');
+$('known').textContent='Umiesz: '+knownCount(cur)+' z '+W.length;
+if(pos>=deck.length){$('study').style.display='none';$('end').style.display='flex';
+const left=W.length-knownCount(cur);$('endT').textContent=deck.length?'Koniec talii':'Nic do powtórki';
+$('endP').textContent=left?'Zostało do nauczenia: '+left:'Umiesz wszystkie '+W.length+'. Brawo!';
+$('again').style.display=left?'':'none';$('count').textContent=deck.length+' / '+deck.length;$('prog').style.width='100%';return}
+$('study').style.display='contents';$('end').style.display='none';
+const w=W[deck[pos]];
+setTimeout(()=>{$('w1').textContent=opt.pl2en?w.pl:w.en;$('w2').textContent=opt.pl2en?w.en:w.pl},wf?230:0);
+$('l1').textContent=opt.pl2en?'Polski':'English';$('l2').textContent=opt.pl2en?'English':'Polski';
+$('n1').textContent=$('n2').textContent=w.k?'✓':'';
+$('count').textContent=(pos+1)+' / '+deck.length;$('prog').style.width=(pos/deck.length*100)+'%'}
+function flip(){card.classList.toggle('flip')}
+function mark(k){if(pos>=deck.length)return;cur.words[deck[pos]].k=k;save();pos++;show()}
+card.onclick=flip;
+$('ok').onclick=()=>mark(true);$('no').onclick=()=>mark(false);
+$('next').onclick=()=>{if(pos<deck.length){pos++;show()}};
+$('prev').onclick=()=>{if(pos>0){pos--;show()}};
+$('dir').onclick=e=>{opt.pl2en=!opt.pl2en;e.target.textContent=opt.pl2en?'PL → EN':'EN → PL';e.target.setAttribute('aria-pressed',opt.pl2en);show()};
+$('shuf').onclick=e=>{opt.shuffle=!opt.shuffle;e.target.setAttribute('aria-pressed',opt.shuffle);build()};
+$('only').onclick=e=>{opt.only=!opt.only;e.target.setAttribute('aria-pressed',opt.only);build()};
+$('again').onclick=()=>{opt.only=true;$('only').setAttribute('aria-pressed',true);build()};
+$('all').onclick=()=>{opt.only=false;$('only').setAttribute('aria-pressed',false);build()};
+$('reset').onclick=()=>{if(confirm('Wyzerować postęp w tym unicie?')){cur.words.forEach(w=>w.k=false);save();build()}};
+document.addEventListener('keydown',e=>{if(view!=='study'||$('dlg').open)return;if(e.target.tagName==='BUTTON'&&e.target!==card)return;
+if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}else if(e.key==='ArrowRight')mark(true);else if(e.key==='ArrowLeft')mark(false)});
+
+/* ---------- okno podglądu (PDF i udostępniony unit) ---------- */
+const SEP=/\s*[–—=]\s*|\s+-\s*|\s*-\s+/;
+let dlgOk=null;
+function prow(en,pl){
+  const r=el('div','prow'),a=el('input','f'),b=el('input','f'),x=el('button','icon','×');
+  a.value=en;b.value=pl;a.setAttribute('aria-label','angielski');b.setAttribute('aria-label','polski');x.setAttribute('aria-label','Usuń');
+  const chk=()=>{r.classList.toggle('warn',SEP.test(a.value)||SEP.test(b.value)||!a.value.trim()||!b.value.trim());upd()};
+  a.oninput=b.oninput=chk;x.onclick=()=>{r.remove();upd()};
+  r.append(a,b,x);setTimeout(chk);return r;
+}
+function rows(){return [...$('dlgList').children].map(r=>{const [a,b]=r.querySelectorAll('input');return [a.value.trim(),b.value.trim()]}).filter(p=>p[0]&&p[1])}
+function upd(){const n=rows().length;$('dlgOk').textContent='Dodaj ('+n+')';$('dlgOk').disabled=!n}
+function openDlg({title,name,pairs,onOk}){
+  $('dlgT').textContent=title;$('dlgName').hidden=name==null;$('dlgName').value=name||'';
+  $('dlgList').replaceChildren(...pairs.map(p=>prow(p[0],p[1])));
+  dlgOk=onOk;upd();$('dlg').showModal();
+}
+$('dlgNo').onclick=()=>$('dlg').close();
+$('dlgOk').onclick=()=>{const r=rows();if(!r.length)return;$('dlg').close();dlgOk(r,$('dlgName').value.trim())};
+
+/* ---------- PDF ---------- */
+function loadPdf(){
+  if(window.pdfjsLib)return Promise.resolve();
+  return new Promise((res,rej)=>{const s=document.createElement('script');s.src=PDFJS+'pdf.min.js';
+    s.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';res()};s.onerror=rej;document.head.append(s)});
+}
+function splitPair(s){
+  s=s.replace(/\s+/g,' ').trim().replace(/^(\d{1,3}|[a-zA-Z])[.)]\s+/,'').replace(/^[•·▪*–—-]\s+/,'');
+  const m=s.match(SEP);if(!m)return null;
+  const en=s.slice(0,m.index).trim(),pl=s.slice(m.index+m[0].length).trim();
+  return en&&pl?[en,pl]:null;
+}
+async function pdfPairs(file){
+  await loadPdf();
+  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,out=[];
+  for(let p=1;p<=doc.numPages;p++){
+    const tc=await (await doc.getPage(p)).getTextContent();
+    const items=tc.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5],w:it.width,h:Math.abs(it.transform[3])||it.height||10}));
+    items.sort((a,b)=>b.y-a.y||a.x-b.x);
+    const lines=[];
+    for(const it of items){const L=lines[lines.length-1];if(L&&Math.abs(L.y-it.y)<it.h*.5)L.items.push(it);else lines.push({y:it.y,items:[it]})}
+    for(const L of lines){
+      L.items.sort((a,b)=>a.x-b.x);
+      // duża przerwa w linii = kolejna para obok
+      const segs=[];let seg='',end=null;
+      for(const it of L.items){
+        const gap=end==null?0:it.x-end;
+        if(end!=null&&gap>it.h*1.5){segs.push(seg);seg=''}else if(end!=null&&gap>it.h*.1)seg+=' ';
+        seg+=it.s;end=it.x+it.w;
+      }
+      segs.push(seg);
+      // myślnik odsunięty tabulatorem łączymy z sąsiadami
+      for(let i=0;i<segs.length-1;i++)if(/[–—=-]\s*$/.test(segs[i])||/^\s*[–—=-]/.test(segs[i+1])){segs.splice(i,2,segs[i]+' '+segs[i+1]);i--}
+      for(const s of segs){const pr=splitPair(s);if(pr)out.push(pr)}
+    }
+  }
+  return out;
+}
+$('pdfBtn').onclick=()=>$('pdfFile').click();
+$('pdfFile').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  const u=cur;toast('Czytam PDF…');let pairs;
+  try{pairs=await pdfPairs(f)}catch(err){toast(navigator.onLine?'Nie udało się odczytać PDF':'Do czytania PDF potrzebny jest internet');return}
+  if(!pairs.length){toast('Nie znalazłem słówek w tym PDF');return}
+  openDlg({title:'Słówka z PDF',pairs,onOk:r=>{const n=addPairs(u,r);save();if(cur===u&&view==='unit')renderUnit();toast('Dodano: '+n)}});
+};
+
+/* ---------- udostępnianie przez link ---------- */
+const b64u=b=>{let s='';for(const c of b)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const unb64u=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+const pipe=async(b,t)=>new Uint8Array(await new Response(new Blob([b]).stream().pipeThrough(t)).arrayBuffer());
+const PART=200;
+async function encodeUnit(data){
+  let b=new TextEncoder().encode(JSON.stringify(data)),p='j';
+  if(window.CompressionStream){try{b=await pipe(b,new CompressionStream('deflate-raw'));p='z'}catch(e){}}
+  return p+b64u(b);
+}
+async function decodeUnit(code){
+  let b=unb64u(code.slice(1));
+  if(code[0]==='z')b=await pipe(b,new DecompressionStream('deflate-raw'));else if(code[0]!=='j')throw 0;
+  const d=JSON.parse(new TextDecoder().decode(b));
+  const w=(Array.isArray(d.w)?d.w:[]).filter(p=>Array.isArray(p)&&typeof p[0]==='string'&&typeof p[1]==='string').map(p=>[p[0].slice(0,200),p[1].slice(0,200)]);
+  if(!w.length)throw 0;
+  const num=x=>Number.isInteger(x)&&x>0&&x<1000?x:1;
+  return {s:typeof d.s==='string'?d.s.slice(0,40):null,n:typeof d.n==='string'?d.n.slice(0,80):'Unit',p:num(d.p),t:num(d.t),w};
+}
+$('shareBtn').onclick=async()=>{
+  const u=cur;if(!u.sid){u.sid=uid();save()}
+  // duży unit dzielimy na kilka linków po PART słówek; u odbiorcy wszystkie trafiają do jednego unitu
+  const all=u.words.map(w=>[w.en,w.pl]),t=Math.ceil(all.length/PART),base=location.href.split('#')[0],urls=[];
+  for(let p=1;p<=t;p++)urls.push(base+'#u='+await encodeUnit({s:u.sid,n:u.name,p,t,w:all.slice((p-1)*PART,p*PART)}));
+  const text=t===1?urls[0]:urls.map((x,i)=>u.name+' – część '+(i+1)+' z '+t+':\n'+x).join('\n\n');
+  if(navigator.share){try{await navigator.share(t===1?{title:u.name,url:urls[0]}:{title:u.name,text});return}catch(e){if(e.name==='AbortError')return}}
+  try{await navigator.clipboard.writeText(text);toast(t===1?'Link skopiowany':'Skopiowano '+t+' linki')}catch(e){prompt('Skopiuj:',text)}
+};
+async function checkHash(){
+  const m=location.hash.match(/^#u=([A-Za-z0-9_-]+)$/);if(!m)return;
+  history.replaceState(history.state,'',location.href.split('#')[0]);
+  let d;try{d=await decodeUnit(m[1])}catch(e){toast('Ten link jest uszkodzony');return}
+  const ex=d.s&&db.units.find(u=>u.sid===d.s);
+  openDlg({title:'Udostępniony unit'+(d.t>1?' – część '+d.p+' z '+d.t:''),name:ex?null:d.n,pairs:d.w,onOk:(r,name)=>{
+    let u=ex&&db.units.includes(ex)?ex:null;
+    if(!u){u={id:uid(),name:name||d.n,words:[]};if(d.s)u.sid=d.s;db.units.push(u)}
+    const n=addPairs(u,r);save();go('unit',u.id);toast('Dodano: '+n);
+  }});
+}
+addEventListener('hashchange',checkHash);
+
+history.replaceState({v:'home'},'');
+go('home',null,false);
+checkHash();
+</script></body></html>
